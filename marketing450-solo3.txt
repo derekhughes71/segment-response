@@ -1,0 +1,749 @@
+setwd("C:/Users/Dman/Desktop/Documents/Classes/Northwestern/PRED 450 - Marketing Analytics/assignments")
+
+load("XYZ_complete_customer_data_frame.RData")
+
+library(rpart)
+library(rattle)
+library(corrgram)
+library(MASS)
+library(randomForest)
+library(inTrees)
+library(pROC)
+library(caret)
+library(dplyr)
+
+
+# setting data set as object data frame
+fdata <- complete.customer.data.frame
+dim(fdata) # dimensions of data frame
+
+plot(fdata$PRE2009_TRANSACTIONS)
+
+fdata_sub= subset(fdata, fdata$PRE2009_TRANSACTIONS < 32) # trimmed PRE2009_TX variable
+
+
+# remove missing values
+fdata_sub=na.omit(fdata_sub)
+dim(fdata_sub)
+
+
+#________________________________________________________________
+####### PREPARE VARIABLES NOW FROM EDA WORK (see below) ##########
+#________________________________________________________________
+
+
+#sapply(train_data, nlevels)
+#train_data[, sapply(train_data, nlevels) > 1]
+
+
+# remove observations with missing values from data set
+#fdata=na.omit(fdata)
+#sum(is.na(fdata)) # check all missing value obs removed
+#dim(fdata)
+
+
+
+#________________________
+# VARIABLE TRANSFORMATION ON FULL DATA SET
+#________________________
+
+# RESPONSE VARIABLE = buyer_status
+table(fdata$BUYER_STATUS)
+
+# changing character string to binomial numeric value (1,2) 
+fdata$cust_purchase <- as.factor(ifelse(fdata$BUYER_STATUS == "ACTIVE", 1, 2))
+cust_purchase = fdata$cust_purchase
+table(cust_purchase)
+
+
+# changing character string to binomial numeric value (1,2) 
+qty_flg <- as.factor(ifelse(fdata$QTY > 0, 1, 2))
+table(qty_flg)
+
+# PREDICTOR VARIABLES
+
+# PRE2009_TRANSACTIONS
+# creating subset data frame without PRE2009_TRANSACTIONS 
+# plot(fdata$PRE2009_TRANSACTIONS) # view plot of PRE2009_TX for outliers
+PRE2009_TRANSACTIONS=fdata$PRE2009_TRANSACTIONS
+# fdata_var = subset(fdata, fdata$PRE2009_TRANSACTIONS < 32)
+# dim(fdata_var)
+# plot(fdata_var$PRE2009_TRANSACTIONS)
+
+# convert to logarithm from pre2009_transactions 
+#log_PRE2009_TRANSACTIONS = log10(fdata_var$PRE2009_TRANSACTIONS)
+#barplot(table(log_PRE2009_TRANSACTIONS))
+# sum(is.na(log_PRE2009_TRANSACTIONS))
+
+# combine mastercard variable into one variable
+#fdata$MASTERCARD = cbind(fdata$MC_REG,fdata$MC_PREM)
+MASTERCARD <- as.factor(ifelse((fdata$MC_REG == "Y") | (fdata$MC_PREM == "Y"), 1,2))
+head(MASTERCARD)
+table(MASTERCARD)
+
+
+# AGE - combine EXAGE and ESTAGE
+AGE <- as.factor(ifelse(fdata$EXAGE == "U"), fdata$ESTAGE, fdata$EXAGE == "U")
+head(fdata$EXAGE)
+head(AGE)
+
+
+# MED_INC
+MED_INC = fdata$MED_INC
+full_model <- glm(cust_purchase ~ MED_INC,
+                  family='binomial',
+                  data=fdata,
+                  weights= ifelse(cust_purchase==1, 1, 0.44))
+summary(full_model)
+
+
+# HOMEOWNER
+HOMEOWNR = as.factor(ifelse(fdata$HOMEOWNR == "Y", 1, 2))
+full_model <- glm(cust_purchase ~ HOMEOWNR,
+                  family='binomial',
+                  data=fdata,
+                  weights= ifelse(cust_purchase==1, 1, 0.44))
+summary(full_model)
+head(fdata$HOMEOWNR)
+
+# RENTER
+RENTER = as.factor(ifelse(fdata$RENTER == "Y", 1, 2))
+head(fdata$RENTER) 
+
+# SUM_MAIL_1
+SUM_MAIL_1 = fdata$SUM_MAIL_1
+
+# ANY_MAIL_1
+ANY_MAIL_1 = as.factor(ifelse(fdata$SUM_MAIL_1 > 0, 1, 2))
+head(ANY_MAIL_1)
+
+# EXAGE
+EXAGE = as.numeric(fdata$EXAGE)
+head(EXAGE)
+
+# LEARNING_TEST
+LEARNING_TEST = fdata$LEARNING_TEST
+
+# ZMUSCRST
+ZMUSCRST = as.factor(ifelse(fdata$ZMUSCRST == "Y", 1, 2))
+head(fdata$ZMUSCRST) 
+
+# ZKITCHEN
+ZKITCHEN = as.factor(ifelse(fdata$ZKITCHEN == "Y", 1, 2))
+head(fdata$ZKITCHEN) 
+
+# NUMBADLT
+NUMBADLT = fdata$NUMBADLT
+
+# ZINVESTR
+ZINVESTR = as.factor(ifelse(fdata$ZINVESTR == "Y", 1, 2))
+head(fdata$ZINVESTR)
+
+# HH_CONTACT_LENSES
+HH_CONTACT_LENSES = as.factor(ifelse(fdata$HH_CONTACT_LENSES == "Y", 1, 2))
+head(fdata$HH_CONTACT_LENSES)
+
+# ZCRAFTS
+ZCRAFTS = as.factor(ifelse(fdata$ZCRAFTS == "Y", 1, 2))
+head(fdata$ZCRAFTS)
+
+# ZCOLLECT
+ZCOLLECT = as.factor(ifelse(fdata$ZCOLLECT == "Y", 1, 2))
+head(fdata$ZCOLLECT)
+
+# ZPRCHPHN
+ZPRCHPHN = as.factor(ifelse(fdata$ZPRCHPHN == "Y", 1, 2))
+head(fdata$ZPRCHPHN)
+
+# ZTENNIS
+ZTENNIS = as.factor(ifelse(fdata$ZTENNIS == "Y", 1, 2))
+head(ZTENNIS)
+
+# ADULT1_G
+ADULT1_G = as.factor(ifelse(fdata$ADULT1_G == "M", 1, ifelse(fdata$ADULT1_G == "F", 2, 3)))
+head(ADULT1_G)
+
+# ZMOBGRDN
+ZMOBGRDN = as.factor(ifelse(fdata$ZMOBGRDN == "Y", 1, 2))
+head(fdata$ZMOBGRDN)
+
+# SPORTS_RELATED
+SPORTS_RELATED = as.factor(ifelse(fdata$SPORTS_RELATED == "Y", 1, 2))
+head(SPORTS_RELATED)
+
+# ZSPENDER - interest in affluent lifestyle
+ZSPENDER = as.factor(ifelse(fdata$ZSPENDER == "Y", 1, 2))
+head(ZSPENDER)
+table(ZSPENDER)
+
+# ZONLINE - subscribe online
+ZONLINE = as.factor(ifelse(fdata$ZONLINE == "Y", 1, 2))
+head(ZONLINE)
+table(ZONLINE)
+
+# ZMOB - Purchase Amount Ranges
+ZMOB = as.factor(ifelse(fdata$ZMOB == "Y", 1, 2))
+head(ZMOB)
+table(ZMOB)
+
+
+head(fdata$ZCOLLECT)
+
+
+# ZCREDIT - Purchase Amount Ranges
+ZCREDIT = as.factor(ifelse(fdata$ZCREDIT == "Y", 1, 2))
+head(ZCREDIT)
+table(ZCREDIT)
+
+# STOCK_BOND_CURRENT - Purchase Amount Ranges
+STOCK_BOND_CURRENT = as.factor(ifelse(fdata$STOCK_BOND_CURRENT == "Y", 1, 2))
+head(STOCK_BOND_CURRENT)
+table(STOCK_BOND_CURRENT)
+
+# STOCK_BOND_CURRENT - Purchase Amount Ranges
+RE_CURRENT = as.factor(ifelse(fdata$RE_CURRENT == "Y", 1, 2))
+head(RE_CURRENT)
+table(RE_CURRENT)
+
+# ZSPORTS
+ZSPORTS = as.factor(ifelse(fdata$ZSPORTS == "Y", 1, 2))
+head(ZSPORTS)
+table(ZSPORTS)
+
+# ENVIRONMENTAL
+ENVIRONMENTAL = as.factor(ifelse(fdata$ENVIRONMENTAL == "Y", 1, 2))
+head(ENVIRONMENTAL)
+table(ENVIRONMENTAL)
+
+# HEALTH_RELATED
+HEALTH_RELATED = as.factor(ifelse(fdata$HEALTH_RELATED == "Y", 1, 2))
+head(HEALTH_RELATED)
+table(HEALTH_RELATED)
+
+
+# CD_MM_CURRENT
+CD_MM_CURRENT = as.factor(ifelse(fdata$CD_MM_CURRENT == "Y", 1, 2))
+head(CD_MM_CURRENT)
+table(CD_MM_CURRENT)
+
+# VETERAN
+VETERAN = as.factor(ifelse(fdata$VETERAN == "Y", 1, 2))
+head(VETERAN)
+table(VETERAN)
+
+
+
+#________________________
+# SELECTED VARIABLES DATA SET
+#________________________
+
+
+fdata_sub_var = data.frame(cust_purchase, PRE2009_TRANSACTIONS, MASTERCARD, MED_INC, HOMEOWNR, RENTER, SUM_MAIL_1, ANY_MAIL_1, HEALTH_RELATED, VETERAN,
+                           EXAGE, ZMUSCRST, ZKITCHEN, NUMBADLT, ZINVESTR, HH_CONTACT_LENSES, ENVIRONMENTAL, ZCREDIT, STOCK_BOND_CURRENT,RE_CURRENT,ZSPORTS,
+                           ZCRAFTS, CD_MM_CURRENT, ZCOLLECT, ZPRCHPHN, ZTENNIS, ADULT1_G, ZMOBGRDN, SPORTS_RELATED, ZONLINE, ZSPENDER, ZMOB, LEARNING_TEST)
+
+train_data <- subset(fdata_sub_var,LEARNING_TEST=='LEARNING')
+test_data <- subset(fdata_sub_var,LEARNING_TEST=='TEST')
+train_data <- select(train_data,-LEARNING_TEST)
+test_data <- select(test_data,-LEARNING_TEST)
+
+fdata_sub_var_orig = data.frame(cust_purchase, PRE2009_TRANSACTIONS, MASTERCARD, MED_INC, HOMEOWNR, RENTER, SUM_MAIL_1, ANY_MAIL_1, 
+                       EXAGE, ZMUSCRST, ZKITCHEN, NUMBADLT, ZINVESTR, HH_CONTACT_LENSES,
+                       ZCRAFTS, ZCOLLECT, ZPRCHPHN, ZTENNIS, ADULT1_G, ZMOBGRDN, SPORTS_RELATED, LEARNING_TEST)
+
+train_data_orig <- subset(fdata_sub_var_orig,LEARNING_TEST=='LEARNING')
+test_data_orig <- subset(fdata_sub_var_orig,LEARNING_TEST=='TEST')
+train_data_orig <- select(train_data_orig,-LEARNING_TEST)
+test_data_orig <- select(test_data_orig,-LEARNING_TEST)
+
+dim(test_data_orig)
+
+
+
+
+
+
+
+
+
+
+
+## add trimmed PRE2009_TX variable subset here
+# PRE2009_TRANSACTIONS
+#train_data_var = subset(train_data_new, train_data_new$PRE2009_TRANSACTIONS < 32)
+#dim(train_data_var)
+# 28034    21
+
+## do missing values removal here
+#train_data_var_m=na.omit(train_data_var)
+#sum(is.na(train_data_var_m)) # check all missing value obs removed
+#dim(train_data_var_m)
+# 26172    21
+
+
+
+##=====================================================================================
+## CREATE TRAINING AND TESTING DATA SUBSETS
+##=====================================================================================
+#Subset data into train and test datasets and remove the column for modeling
+#set.seed(11)
+#train=sample(c(TRUE,FALSE),nrow(train_data_var_m),rep=TRUE)
+#test=(!train)
+
+#train_data=train_data_var_m[train,]
+#test_data=train_data_var_m[test,]
+
+#dim(train_data)
+#dim(test_data)
+
+
+
+
+
+
+
+
+# __________
+# TEST ON TREE - it works!!! :)
+# __________
+##=====================================================================================
+## FIT AN INITIAL DECISION TREE USING ALL VARIABLES
+##=====================================================================================
+#Fit a initial decision tree
+tree.train.1 <- rpart(cust_purchase ~ .,data=train_data,method='class',
+                      control=rpart.control(minsplit=500,cp=0.001))
+tree.train.1$variable.importance
+summary(tree.train.1)
+
+fancyRpartPlot(tree.train.1,main='Decision Tree for XYZ Data',cex=0.60)
+
+#test the model on in-sample data
+tree.train.1p  <- predict(tree.train.1, data=train_data,type="class")
+auc(tree.train.1p,as.numeric(train_data$cust_purchase))
+
+#Make a confusion matrix and compute accuracy
+confusion.matrix <- table(tree.train.1p,train_data$cust_purchase)
+confusionMatrix(confusion.matrix)
+
+#tree.train.1p    1    2
+#1 3025  909
+#2 2713 6343
+
+#Accuracy : 0.7279
+#Area under the curve: 0.7403
+
+
+#test the model on the remaining partition
+tree.test.1p  <- predict(tree.train.1, newdata=test_data,type="class")
+auc(tree.test.1p,as.numeric(test_data$cust_purchase))
+
+#Make a confusion matrix and compute accuracy
+confusion.matrix <- table(tree.test.1p,test_data$cust_purchase)
+confusionMatrix(confusion.matrix)
+
+#tree.test.1p    1    2
+#1 3107  952
+#2 2716 6407
+
+#Accuracy : 0.7266
+#Area under the curve: 0.7376
+
+
+
+##=====================================================================================
+## FIT AN SECOND DECISION TREE USING VARIABLES ID'D as IMPORTANT BY INITIAL TREE
+## PLUS X and X VARIABLE
+##=====================================================================================
+#Fit a initial decision tree
+tree.train.2 <- rpart(cust_purchase ~PRE2009_TRANSACTIONS+
+                        MED_INC+SUM_MAIL_1+EXAGE+HOMEOWNR+
+                        NUMBADLT+ZMUSCRST+ZONLINE+ZSPENDER+ZMOB,
+                      data=train_data,method='class',
+                      control=rpart.control(minsplit=500,cp=0.001))
+tree.train.2$variable.importance
+summary(tree.train.2)
+
+fancyRpartPlot(tree.train.2,main='Decision Tree for XYZ Data',cex=0.60)
+
+#test the model on in-sample data
+tree.train.2p  <- predict(tree.train.2, data=train_data,type="class")
+auc(tree.train.2p,as.numeric(train_data$cust_purchase))
+#Make a confusion matrix and compute accuracy
+confusion.matrix <- table(tree.train.2p,train_data$cust_purchase)
+confusionMatrix(confusion.matrix)
+
+#AUC 0.7426
+#Accuracy : 0.7281
+
+#test the model on the remaining partition
+tree.test.2p  <- predict(tree.train.2, newdata=test_data,type="class")
+auc(tree.test.2p,as.numeric(test_data$cust_purchase))
+#Make a confusion matrix and compute accuracy
+confusion.matrix <- table(tree.test.2p,test_data$cust_purchase)
+confusionMatrix(confusion.matrix)
+fancyRpartPlot(tree.test.2p,main='Decision Tree for XYZ Data',cex=0.45)
+
+#AUC 0.7379
+#Accuracy : 0.7252
+
+
+
+#Fit a initial decision tree
+tree.train.3 <- rpart(cust_purchase ~PRE2009_TRANSACTIONS+
+                        MED_INC+SUM_MAIL_1+EXAGE+HOMEOWNR+
+                        NUMBADLT+ZMUSCRST+ZONLINE+ZSPENDER,
+                      data=train_data,method='class',
+                      control=rpart.control(minsplit=500,cp=0.001))
+tree.train.3$variable.importance
+summary(tree.train.3)
+
+fancyRpartPlot(tree.train.3,main='Decision Tree for XYZ Data',cex=0.60)
+
+#test the model on in-sample data
+tree.train.3p  <- predict(tree.train.3, data=train_data,type="class")
+auc(tree.train.3p,as.numeric(train_data$cust_purchase))
+#Make a confusion matrix and compute accuracy
+confusion.matrix <- table(tree.train.3p,train_data$cust_purchase)
+confusionMatrix(confusion.matrix)
+
+#AUC 0.7426
+#Accuracy : 0.7281
+
+#test the model on the remaining partition
+tree.test.3p  <- predict(tree.train.3, newdata=test_data,type="class")
+auc(tree.test.3p,as.numeric(test_data$cust_purchase))
+#Make a confusion matrix and compute accuracy
+confusion.matrix <- table(tree.test.3p,test_data$cust_purchase)
+confusionMatrix(confusion.matrix)
+fancyRpartPlot(tree.test.3p,main='Decision Tree for XYZ Data',cex=0.45)
+
+#AUC 0.7379
+#Accuracy : 0.7252
+
+
+
+
+#---
+# SINGLE VARIABLE SELECTIN PROCESS
+full_model <- glm(cust_purchase ~ .,
+                  family='binomial',
+                  data=train_data,
+                  weights= ifelse(cust_purchase==1, 1, 0.44))
+summary(full_model)
+
+#test the model on in-sample data
+log.train.2p  <- predict(tree.train.2, data=train_data,type="class")
+auc(log.train.2p,as.numeric(train_data$cust_purchase))
+
+
+
+
+#_______________________________
+# SUBSET FROM CART TREE
+#_______________________________
+
+subdat_orig <- subset(fdata_sub_var, PRE2009_TRANSACTIONS >= 4.5)
+dim(fdata_sub_var_orig)
+str(subdat1)
+dim(subdat1)
+head(subdat1)
+
+# SPLIT subdata into train and test data set
+train_dataS_orig <- subset(subdat_orig,LEARNING_TEST=='LEARNING')
+dim(train_dataS_orig)
+test_dataS_orig <- subset(subdat_orig,LEARNING_TEST=='TEST')
+train_dataS_orig <- select(train_dataS_orig,-LEARNING_TEST)
+test_dataS_orig <- select(test_dataS_orig,-LEARNING_TEST)
+dim(test_dataS_orig)
+
+#dim(train_data)
+#dim(test_data)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+##=====================================================================================
+## FIT A LOGISTIC REGRESSION MODEL WITH BACKWARD VARIABLE SELECTION
+##=====================================================================================
+#FIT FULL MODEL WITH VARIABLES THAT HAD AUC > 0.60 FOR SINGLE VARIABLE LOGISTIC MODEL
+full_model <- glm(cust_purchase ~ .,
+                  family='binomial',
+                  data=train_dataS_orig,
+                  weights= ifelse(cust_purchase==1, 1, 0.44))
+summary(full_model)
+# AIC = 1204.5
+# TEST AIC = 692.42
+
+#FIT FULL MODEL ON VARIABLES THAT HAD P-VALUE < 0.11 in either train or test set
+full_model2 <- glm(cust_purchase ~ PRE2009_TRANSACTIONS+MED_INC+
+                     HOMEOWNR+ZKITCHEN+
+                     ZCOLLECT+SPORTS_RELATED+ZMOBGRDN,
+                   family='binomial',
+                   data=test_dataS_orig,
+                   weights= ifelse(cust_purchase==1, 1, 0.44))
+summary(full_model2)
+# AIC = 1360.7
+# TEST AIC = 776.1
+
+
+#ATTEMPT TO DECREASE AIC WITH .1 SIG VARIABLES FROM model 2 + ADDITIONAL VARIABLES: TOTAMT
+full_model3 <- glm(cust_purchase ~ PRE2009_TRANSACTIONS+MED_INC+
+                     HOMEOWNR+ZKITCHEN+ZCOLLECT+SPORTS_RELATED+ZMOBGRDN+
+                     ENVIRONMENTAL+ ZCREDIT+ STOCK_BOND_CURRENT+ RE_CURRENT+ ZSPORTS+ CD_MM_CURRENT+ ZONLINE+ ZSPENDER+ ZMOB,
+                   family='binomial',
+                   data=test_dataS_orig,
+                   weights= ifelse(cust_purchase==1, 1, 0.44))
+summary(full_model3)
+
+# AIC = 1378.1
+# TEST AIC = 792.91
+
+
+
+stepAIC(full_model3,direction = c("backward"))
+# using backward selection with full_model4 values
+full_model4 <- glm(cust_purchase ~ PRE2009_TRANSACTIONS+MED_INC+
+                     HOMEOWNR+ZKITCHEN+ZMOBGRDN+ZCOLLECT+
+                     SPORTS_RELATED,
+                   family='binomial',
+                   data=test_dataS_orig,
+                   weights= ifelse(cust_purchase==1, 1, 0.44))
+summary(full_model4)
+# AIC = 1360.7
+# TEST AIC = 774.1
+
+
+
+single_model <- glm(cust_purchase ~ CD_MM_CURRENT,
+                   family='binomial',
+                   data=train_data,
+                   weights= ifelse(cust_purchase==1, 1, 0.44))
+summary(single_model)
+
+
+names(fdata)
+head(fdata$QTY)
+
+
+
+# _____________________________
+#  PREDICT VARIABLE FROM BEST LOG REGRESSION
+#________________________________
+
+# PREDICITONS ON FULL MODEL
+train_dataS$cust_purchaseP <- predict(full_model, newdata = train_dataS, type = "response")
+#head(train_dataS)
+
+pred = train_dataS$cust_purchaseP
+min(pred)
+max(pred)
+sum(is.na(pred))
+#table(pred)
+sum(pred>.30)
+sum(pred>.20)
+sum(pred>.15)
+sum(pred>.10)
+sum(pred>.05)
+
+# PREDICTIONS ON FULL MODEL 4
+test_dataS$cust_purchaseP <- predict(full_model4, newdata = test_dataS, type = "response")
+#head(train_dataS)
+
+pred2 = test_dataS$cust_purchaseP
+min(pred2)
+max(pred2)
+sum(is.na(pred2))
+
+sum(pred2>.30)
+sum(pred2>.20)
+sum(pred2>.15)
+sum(pred2>.10)
+sum(pred2>.05)
+dim(test_dataS)
+#table(pred2)
+
+
+
+------------------------------------------------------------------------------------
+
+setwd("C:/Users/Dman/Desktop/Documents/Classes/Northwestern/PRED 450 - Marketing Analytics/assignments")
+
+load("XYZ_complete_customer_data_frame.RData")
+
+library(leaps)
+require(rpart)
+require(tree)
+require(rattle)
+library(randomForest)
+
+ls()
+str(complete.customer.data.frame)
+fdata <- complete.customer.data.frame
+str(fdata)
+names(fdata)
+
+
+
+
+
+
+# dimensions of full fdata
+dim(fdata)
+
+# first 6 rows and first 5 columns/variables/predictors
+head(fdata[,1:5])
+
+
+# remove obs with missing values
+fdata=na.omit(fdata)
+sum(is.na(fdata)) # check all missing value obs removed
+dim(fdata)
+
+
+# create training and test fdata set
+set.seed(11)
+train=sample(c(TRUE,FALSE),nrow(fdata),rep=TRUE)
+test=(!train)
+
+fdata=fdata[train,]
+fdata.test=fdata[test,]
+
+dim(fdata)
+dim(fdata.test)
+
+head(fdata)
+
+
+
+
+
+
+# EDA
+# do all EDA work on the training fdata set fdata[train,]
+
+# RESPONSE VARIABLE SELECTION
+
+table(fdata$BUYER_STATUS)
+
+# changing character string to binomial numeric value (1,2) 
+fdata$buyer_flag <- as.factor(ifelse(fdata$BUYER_STATUS == "ACTIVE", 1, 2))
+table(fdata$buyer_flag)
+
+# combine mastercard variable into one variable
+fdata$MC_REG_FLAG <- as.factor(ifelse(fdata$MC_REG == "Y", 1, 2))
+fdata$MC_PREM_FLAG <- as.factor(ifelse(fdata$MC_PREM == "Y", 1, 2))
+
+fdata$MASTERCARD=sum(as.numeric(fdata$MC_REG_FLAG)+as.numeric(fdata$MC_PREM_FLAG))
+table(fdata$MASTERCARD)
+
+
+
+
+buyer_flag_n = as.numeric(fdata$buyer_flag)
+lm1 = lm(buyer_flag_n~log_PRE2009_TRANSACTIONS, data=fdata)
+
+# convert to logarithm from pre2009_transactions 
+log_PRE2009_TRANSACTIONS = log10(fdata$PRE2009_TRANSACTIONS)
+barplot(table(log_PRE2009_TRANSACTIONS))
+
+barplot(table(fdata$PRE2009_TRANSACTIONS))
+
+# range(log_PRE2009_TRANSACTIONS)
+
+# combine mastercard information
+
+
+
+#mod1 = rpart(buyer_flag~PRE2009_TRANSACTIONS+MED_INC+SUM_MAIL_1+ANY_MAIL_1+EXAGE+ZMUSCRST+
+#               ZKITCHEN+NUMBADLT+ZINVESTR+HH_CONTACT_LENSES+ZCRAFTS+ZCOLLECT+
+#  ZPRCHPHN+ZTENNIS+ADULT1_G+ZMOBGRDN+SPORTS_RELATED,method="class", data=fdata)
+
+
+set.seed(11)
+mod1 = rpart(buyer_flag~PRE2009_TRANSACTIONS+MED_INC+SUM_MAIL_1+ANY_MAIL_1+EXAGE+ZMUSCRST+
+               ZKITCHEN+NUMBADLT+ZINVESTR+HH_CONTACT_LENSES+ZCRAFTS+ZCOLLECT+
+               ZPRCHPHN+ZTENNIS+ADULT1_G+ZMOBGRDN+SPORTS_RELATED,method="class", data=fdata)
+
+
+
+
+
+
+set.seed(11)
+model.rf1 <- randomForest(buyer_flag~PRE2009_TRANSACTIONS+MED_INC+SUM_MAIL_1+ANY_MAIL_1+EXAGE+ZMUSCRST+
+                            ZKITCHEN+NUMBADLT+ZINVESTR+HH_CONTACT_LENSES+ZCRAFTS+ZCOLLECT+
+                            ZPRCHPHN+ZTENNIS+ADULT1_G+ZMOBGRDN+SPORTS_RELATED, 
+                          data=fdata, mtry=5, importance=TRUE)
+
+
+
+# buyer segment model 1
+mod1 = rpart(buyer_flag~x1+x2+x3,method="class", data=fdata)
+printcp(mod1) # display the results 
+plotcp(mod1) # visualize cross-validation results 
+summary(mod1) # detailed summary of splits
+fancyRpartPlot(mod1,main='Decision Tree for BaseModel all fdata',cex=0.6)
+
+# buyer segment model 2
+mod1 = rpart(buyer_flag~x1+x2+x3,method="class", data=fdata)
+printcp(mod1) # display the results 
+plotcp(mod1) # visualize cross-validation results 
+summary(mod1) # detailed summary of splits
+fancyRpartPlot(mod1,main='Decision Tree for BaseModel all data',cex=0.6)
+
+RegTree <- rpart(buyer_flag~x1+x2+x3,method="anova", data=fdata)
+
+
+
+
+
+
+
+
+library(reshape)
+x <- subset(melt(cor.num), value != 1 | value != NA)
+x <- x[with(x, order(-abs(x$value))),]
+x
+
+
+
+
+
+## MODELS ###
+
+require(rpart)
+require(tree)
+require(rattle)
+
+ClassTree  <- rpart(Y ~ X1+X2+X3, method="class", data=subdat)
+printcp(ClassTree) # display the results 
+plotcp(ClassTree) # visualize cross-validation results 
+summary(ClassTree) # detailed summary of splits
+fancyRpartPlot(ClassTree,main='Decision Tree for BaseModel all data',cex=0.6)
+
+
+
+
+
+
+
+RegTree <- rpart(Y ~ X1+X2+X3, data = subdat, method = "anova")
+
+
+
+mylogit <- glm(response ~ X1 + X2+ X3, data = subdat, family = "binomial")
+summary(mylogit)
+Predict_value <- predict(mylogit, data=subdat)  ## use this probability as the cutoff value for targeting
+
+
+
